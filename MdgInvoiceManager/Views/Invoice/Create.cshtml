@@ -1,0 +1,118 @@
+﻿@model MdgInvoiceManager.Models.Invoice
+
+@{
+    ViewData["Title"] = "Yeni e-Fatura Oluştur";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>e-Fatura <small class="text-muted fs-5">/ Yeni Fatura Oluştur</small></h2>
+        <div>
+            <a asp-action="Index" class="btn btn-outline-secondary">← Taslaklara Dön</a>
+            <button type="submit" form="invoiceForm" class="btn btn-success fw-bold">🚀 Faturayı Oluştur</button>
+        </div>
+    </div>
+
+    <form id="invoiceForm" asp-action="Create" method="post">
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white font-monospace fw-bold">
+                📄 Fatura Bilgileri
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Fatura Tipi</label>
+                        <select asp-for="InvoiceType" class="form-select">
+                            <option value="SATIŞ">SATIŞ</option>
+                            <option value="İADE">İADE</option>
+                            <option value="TEVKİFAT">TEVKİFAT</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Senaryo</label>
+                        <select asp-for="Scenario" class="form-select">
+                            <option value="TİCARİ FATURA">TİCARİ FATURA</option>
+                            <option value="TEMEL FATURA">TEMEL FATURA</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Fatura Tarihi</label>
+                        <input asp-for="InvoiceDate" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Para Birimi</label>
+                        <select asp-for="Currency" class="form-select">
+                            <option value="TRY">Türk Lirası (₺)</option>
+                            <option value="USD">Amerikan Doları ($)</option>
+                            <option value="EUR">Euro (€)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white font-monospace fw-bold">
+                🏢 Alıcı / Müşteri Bilgileri
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">VKN / TCKN *</label>
+                        <input asp-for="VknTckn" class="form-control" placeholder="11 haneli TCKN veya 10 haneli VKN" required />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Firma / Alıcı Unvanı *</label>
+                        <input asp-for="CustomerName" class="form-control" placeholder="Örn: HIZLI BİLİŞİM TEST FİRMA LTD.ŞTİ." required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Vergi Dairesi</label>
+                        <input asp-for="TaxOffice" class="form-control" placeholder="Örn: Büyük Mükellefler V.D." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">İl / İlçe</label>
+                        <input asp-for="City" class="form-control" placeholder="Örn: İstanbul / Kadıköy" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white font-monospace fw-bold">
+                💰 Fatura Tutarı ve Hesaplama
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold fs-5">Fatura Ara Tutarı (KDV Hariç) ₺</label>
+                        <input asp-for="Amount" id="amountInput" type="number" step="0.01" class="form-control form-control-lg border-2 border-success" placeholder="0.00" required />
+                    </div>
+                    <div class="col-md-6 bg-light p-3 rounded border">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>KDV Tutarı (%20):</span>
+                            <strong id="kdvText">₺0,00</strong>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-success">
+                            <span>GENEL TOPLAM:</span>
+                            <span id="totalText">₺0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    document.getElementById('amountInput').addEventListener('input', function () {
+        let amount = parseFloat(this.value) || 0;
+        let kdv = amount * 0.20;
+        let total = amount + kdv;
+
+        document.getElementById('kdvText').innerText = '₺' + kdv.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+        document.getElementById('totalText').innerText = '₺' + total.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+    });
+</script>

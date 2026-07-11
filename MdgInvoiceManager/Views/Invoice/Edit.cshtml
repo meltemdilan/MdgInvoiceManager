@@ -1,0 +1,77 @@
+﻿@model MdgInvoiceManager.Models.Invoice
+
+@{
+    ViewData["Title"] = "Fatura Düzenle";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0 col-md-8 mx-auto p-0">
+        <div class="card-header bg-warning text-dark font-weight-bold">
+            <h5>✏️ Fatura Bilgilerini Düzenle (ID: @Model.Id)</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="FilePath" /> <!-- Var olan dosya yolunu koru -->
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">Müşteri / Firma Adı</label>
+                        <input asp-for="CustomerName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">VKN / TCKN</label>
+                        <input asp-for="VknTckn" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">Vergi Dairesi</label>
+                        <input asp-for="TaxOffice" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">Şehir</label>
+                        <input asp-for="City" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">Senaryo</label>
+                        <select asp-for="Scenario" class="form-control">
+                            <option value="TEMEL FATURA">TEMEL FATURA</option>
+                            <option value="TİCARİ FATURA">TİCARİ FATURA</option>
+                            <option value="E-ARŞİV">E-ARŞİV</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label font-weight-bold">Para Birimi</label>
+                        <input asp-for="Currency" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label font-weight-bold">KDV Tutarı (₺)</label>
+                        <input asp-for="TaxAmount" class="form-control" type="number" step="0.01" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label font-weight-bold">Toplam Tutar (₺)</label>
+                        <input asp-for="TotalAmount" class="form-control" type="number" step="0.01" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label font-weight-bold">Fatura Tutarı (₺)</label>
+                        <input asp-for="Amount" class="form-control" type="number" step="0.01" required />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-action="Index" class="btn btn-secondary">← İptal</a>
+                    <button type="submit" class="btn btn-warning font-weight-bold">💾 Değişiklikleri Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

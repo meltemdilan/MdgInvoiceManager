@@ -1,0 +1,57 @@
+﻿@model IEnumerable<MdgInvoiceManager.Models.Invoice>
+
+@{
+    ViewData["Title"] = "Fatura Paneli";
+}
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Müşteri Fatura Listesi</h2>
+        <a asp-controller="Invoice" asp-action="Create" class="btn btn-primary fw-bold">+ Yeni Fatura Ekle</a>
+    </div>
+
+    <table class="table table-bordered table-hover align-middle shadow-sm">
+        <thead class="table-dark text-center">
+            <tr>
+                <th>ID</th>
+                <th>Müşteri / Firma Adı</th>
+                <th>Tarih</th>
+                <th>Tutar</th>
+                <th>İşlemler </th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var fatura in Model)
+                {
+                    <tr>
+                        <td class="text-center fw-bold">#@fatura.Id</td>
+                        <td>@fatura.CustomerName</td>
+                        <td class="text-center">@fatura.InvoiceDate.ToString("dd.MM.yyyy")</td>
+                        <td class="text-end fw-bold text-success">@fatura.Amount.ToString("C2")</td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a asp-action="Edit" asp-route-id="@fatura.Id" class="btn btn-sm btn-outline-warning">
+                                    ✏️ Düzenle
+                                </a>
+
+                                <form asp-action="Delete" asp-route-id="@fatura.Id" method="post" onsubmit="return confirm('Bu faturayı silmek istediğinize emin misiniz?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        🗑️ Sil
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted">Veritabanında henüz hiç fatura bulunamadı.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
