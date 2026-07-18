@@ -1,0 +1,52 @@
+﻿@model MdgInvoiceManager.Models.Invoice
+
+@{
+    ViewData["Title"] = "Yeni Fatura Ekle";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<div class="container mt-4" style="max-width: 600px;">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">🚀 Yeni e-Fatura Oluştur</h4>
+        </div>
+        <div class="card-body">
+            <form action="/InvoiceWeb/Create" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Müşteri / Firma Unvanı</label>
+                    <input type="text" name="CustomerName" class="form-control" placeholder="Örn: Meltem A.Ş." required />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">VKN / TCKN</label>
+                        <input type="text" name="VknTckn" class="form-control" placeholder="10 veya 11 haneli" required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Şehir</label>
+                        <input type="text" name="City" class="form-control" placeholder="Örn: İstanbul" required />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Vergi Dairesi</label>
+                        <input type="text" name="TaxOffice" class="form-control" placeholder="Örn: Kadıköy V.D." required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Fatura Matrah Tutar (₺)</label>
+                        <input type="number" step="0.01" name="Amount" class="form-control" placeholder="0.00" required />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-3">
+                    <a href="/InvoiceWeb/Index" class="btn btn-secondary">⬅ İptal / Listeye Dön</a>
+                    <button type="submit" class="btn btn-primary">💾 Faturayı Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
