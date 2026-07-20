@@ -36,8 +36,8 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         ValidIssuer = "mdgadmin",
-        ValidAudience = "mdgkullanici", // 'ı' harfini 'i' yaptık, tertemiz oldu.
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mdg1234567891234"))
+        ValidAudience = "mdgkullanici", // 
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mdg1234567891234mdg1234567891234"))
     };
 });
 

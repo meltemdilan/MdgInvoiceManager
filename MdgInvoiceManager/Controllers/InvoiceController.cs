@@ -21,7 +21,7 @@ namespace MdgInvoiceManager.Controllers
         // GET: api/Invoice
         // Tüm faturaları listeler (Giriş yapmış her kullanıcı görebilir)
         [HttpGet]
-       // [Authorize]
+        [Authorize]
         public IActionResult GetAll()
         {
             var invoices = _context.Invoices.ToList();
@@ -31,7 +31,7 @@ namespace MdgInvoiceManager.Controllers
         // GET: api/Invoice/5
         // Id'ye göre tek bir faturayı getirir (Giriş yapmış her kullanıcı görebilir)
         [HttpGet("{id}")]
-       // [Authorize]
+        [Authorize]
         public IActionResult GetById(int id)
         {
             var invoice = _context.Invoices.Find(id);
@@ -45,7 +45,7 @@ namespace MdgInvoiceManager.Controllers
         // POST: api/Invoice
         // Yeni bir fatura oluşturur (Giriş yapmış her kullanıcı ekleyebilir)
         [HttpPost]
-       // [Authorize]
+        [Authorize]
         public IActionResult Create([FromBody] Invoice invoice)
         {
             // 1. Veri Boş mu Kontrolü
@@ -77,9 +77,9 @@ namespace MdgInvoiceManager.Controllers
         }
 
         // PUT: api/Invoice/5
-        // Var olan faturayı günceller (🛑 SADECE ADMİN ROLÜ GÜNCELLEYEBİLİR!)
+        // Var olan faturayı günceller ( SADECE ADMİN ROLÜ GÜNCELLEYEBİLİR!)
         [HttpPut("{id}")]
-       // [Authorize(Roles = "Admin")]
+       [Authorize(Roles = "Admin")]
         public IActionResult Update(int id, [FromBody] Invoice updatedInvoice)
         {
             // 1. Veri Boş mu Kontrolü
@@ -117,7 +117,7 @@ namespace MdgInvoiceManager.Controllers
         // DELETE: api/Invoice/5
         // Faturayı siler (🛑 SADECE ADMİN ROLÜ SİLEBİLİR!)
         [HttpDelete("{id}")]
-       // [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public IActionResult Delete(int id)
         {
             var invoice = _context.Invoices.Find(id);

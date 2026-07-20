@@ -89,10 +89,10 @@ namespace MdgInvoiceManager.Controllers
                 // Şifreleme Anahtarı ve İmzayı hazırlıyoruz
                 var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mdg1234567891234mdg1234567891234"));
                 var signingCredentials = new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256);
-
+                // şu kısmın mantığını çok oturtamadım kafama *********************?????????????????????
                 var token = new JwtSecurityToken(
                     issuer: "mdgadmin",
-                    audience: "mdgkullanıcı",
+                    audience: "mdgkullanici",
                     expires: DateTime.Now.AddHours(3),
                     claims: authClaims,
                     signingCredentials: signingCredentials
