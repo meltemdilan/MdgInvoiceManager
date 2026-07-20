@@ -3,14 +3,16 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Veritabanı Bağlantısı
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
   options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
+// 2. Identity Servisi
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -36,17 +38,47 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         ValidIssuer = "mdgadmin",
-        ValidAudience = "mdgkullanici", // 
+        ValidAudience = "mdgkullanici",
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mdg1234567891234mdg1234567891234"))
     };
 });
 
-// 4. API Controller ve MVC View Desteği
+// 4. Controller ve View Desteği
 builder.Services.AddControllersWithViews();
 
 // 5. Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "MdgInvoiceManager", Version = "v1" });
+
+    // Bearer Token Yetkilendirme Tanımı
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT token'ınızı girin. Örnek: 'Bearer {token}'"
+    });
+
+    // Kilit İkonunun Tüm Endpoint'lere Uygulanması
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
@@ -62,7 +94,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -73,4 +104,4 @@ app.MapControllerRoute(
   name: "default",
   pattern: "{controller=InvoiceWeb}/{action=Index}/{id?}");
 
-app.Run(); 
+app.Run();

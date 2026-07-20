@@ -15,14 +15,15 @@ namespace MdgInvoiceManager.Models
         public string CustomerName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Tutar alanı boş bırakılamaz.")]
-        [Range(0.01, 10000000.00, ErrorMessage = "Fatura tutarı 0'dan büyük olmalıdır.")]
+        [Range(0.01, 10000000.00, ErrorMessage = "Fatura tutarı 0'dan büyük ve makul bir değer olmalıdır.")]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
-        [Required(ErrorMessage = "Lütfen geçerli bir şehir seçiniz.")]
+        [Required(ErrorMessage = "Şehir alanı boş bırakılamaz.")]
+        [City] // 👈 Eklediğimiz 81 İl Kontrolü
         public string City { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Fatura türü boş bırakılamaz.")]
         public string InvoiceType { get; set; } = "Genel";
 
         [Required(ErrorMessage = "Fatura tarihi seçilmelidir.")]
@@ -32,14 +33,13 @@ namespace MdgInvoiceManager.Models
 
         public string? Scenario { get; set; }
 
-
         public string? Currency { get; set; }
 
-        // VKN/TCKN Alanı (10 veya 11 hane sınırlaması)
+        // VKN/TCKN Alanı (Sadece 10 veya 11 haneli rakamlar)
         [RegularExpression(@"^[0-9]{10,11}$", ErrorMessage = "VKN/TCKN alanı sadece 10 haneli (VKN) veya 11 haneli (TCKN) rakamlardan oluşmalıdır.")]
         public string? VknTckn { get; set; }
 
-        // Ekranındaki hatayı çözen ekleme: Vergi Dairesi
+        // Vergi Dairesi
         public string? TaxOffice { get; set; }
 
         // Otomatik hesaplanan alanlar

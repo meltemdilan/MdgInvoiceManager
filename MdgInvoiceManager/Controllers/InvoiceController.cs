@@ -77,7 +77,7 @@ namespace MdgInvoiceManager.Controllers
         }
 
         // PUT: api/Invoice/5
-        // Var olan faturayı günceller ( SADECE ADMİN ROLÜ GÜNCELLEYEBİLİR!)
+        
         [HttpPut("{id}")]
        [Authorize(Roles = "Admin")]
         public IActionResult Update(int id, [FromBody] Invoice updatedInvoice)
@@ -115,7 +115,7 @@ namespace MdgInvoiceManager.Controllers
         }
 
         // DELETE: api/Invoice/5
-        // Faturayı siler (🛑 SADECE ADMİN ROLÜ SİLEBİLİR!)
+       
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public IActionResult Delete(int id)
