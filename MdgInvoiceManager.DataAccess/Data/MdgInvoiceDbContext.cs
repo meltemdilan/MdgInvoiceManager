@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MdgInvoiceManager.Models;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using MdgInvoiceManager.Core.Entities;
 
-namespace MdgInvoiceManager.Data
+namespace MdgInvoiceManager.DataAccess.Data
 {
     public class MdgInvoiceDbContext : IdentityDbContext<IdentityUser>
     {
@@ -11,7 +11,7 @@ namespace MdgInvoiceManager.Data
         {
         }
 
-        
         public DbSet<Invoice> Invoices { get; set; }
+   
     }
 }

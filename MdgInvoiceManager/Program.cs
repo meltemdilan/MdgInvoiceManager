@@ -1,4 +1,9 @@
-﻿using MdgInvoiceManager.Data;
+﻿// Katmanlarımızın Namespace'leri
+using MdgInvoiceManager.Business.Abstract;
+using MdgInvoiceManager.Business.Concreate;
+using MdgInvoiceManager.DataAccess.Data;
+using MdgInvoiceManager.DataAccess.Repositories.Abstract;
+using MdgInvoiceManager.DataAccess.Repositories.Concrete;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Veritabanı Bağlantısı
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
-  options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Identity Servisi
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -43,16 +48,20 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 4. Controller ve View Desteği
+// 4. Katmanlı Mimari Servis Kayıtları
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddScoped<IInvoiceService, InvoiceManager>();
+builder.Services.AddScoped<IAuthService, AuthManager>();
+
+// 5. Controller ve View Desteği
 builder.Services.AddControllersWithViews();
 
-// 5. Swagger
+// 6. Swagger Yapılandırması
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "MdgInvoiceManager", Version = "v1" });
 
-    // Bearer Token Yetkilendirme Tanımı
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -63,7 +72,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "JWT token'ınızı girin. Örnek: 'Bearer {token}'"
     });
 
-    // Kilit İkonunun Tüm Endpoint'lere Uygulanması
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -82,7 +90,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// 6. Middleware Yapılandırması
+// 7. Middleware Yapılandırması
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -97,11 +105,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// 7. Yönlendirmeler
+// 8. Yönlendirmeler
 app.MapControllers();
-
-app.MapControllerRoute(
-  name: "default",
-  pattern: "{controller=InvoiceWeb}/{action=Index}/{id?}");
 
 app.Run();

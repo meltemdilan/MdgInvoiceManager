@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization; // Yetkilendirme kütüphanesi
+﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MdgInvoiceManager.Models;
-using MdgInvoiceManager.Data;
-using System;
-using System.Linq;
+using MdgInvoiceManager.Business.Abstract;
+using MdgInvoiceManager.Core.Entities;
 
 namespace MdgInvoiceManager.Controllers
 {
@@ -11,125 +10,93 @@ namespace MdgInvoiceManager.Controllers
     [Route("api/[controller]")]
     public class InvoiceController : ControllerBase
     {
-        private readonly MdgInvoiceDbContext _context;
+        private readonly IInvoiceService _invoiceService;
 
-        public InvoiceController(MdgInvoiceDbContext context)
+        // Controller sadece Business katmanındaki IInvoiceService bağımlılığına sahiptir
+        public InvoiceController(IInvoiceService invoiceService)
         {
-            _context = context;
+            _invoiceService = invoiceService;
         }
 
         // GET: api/Invoice
-        // Tüm faturaları listeler (Giriş yapmış her kullanıcı görebilir)
         [HttpGet]
         [Authorize]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            var invoices = _context.Invoices.ToList();
-            return Ok(invoices); // HTTP 200 OK + JSON Listesi
+            var invoices = await _invoiceService.GetAllInvoicesAsync();
+            return Ok(invoices);
         }
 
         // GET: api/Invoice/5
-        // Id'ye göre tek bir faturayı getirir (Giriş yapmış her kullanıcı görebilir)
         [HttpGet("{id}")]
         [Authorize]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetById(int id)
         {
-            var invoice = _context.Invoices.Find(id);
+            var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
             if (invoice == null)
             {
-                return NotFound(new { message = $"ID değeri {id} olan fatura bulunamadı." }); // HTTP 404
+                return NotFound(new { message = $"ID değeri {id} olan fatura bulunamadı." });
             }
-            return Ok(invoice); // HTTP 200 OK + Fatura JSON
+            return Ok(invoice);
         }
 
         // POST: api/Invoice
-        // Yeni bir fatura oluşturur (Giriş yapmış her kullanıcı ekleyebilir)
         [HttpPost]
         [Authorize]
-        public IActionResult Create([FromBody] Invoice invoice)
+        public async Task<IActionResult> Create([FromBody] Invoice invoice)
         {
-            // 1. Veri Boş mu Kontrolü
             if (invoice == null)
             {
-                return BadRequest(new { message = "Geçersiz veya boş fatura verisi." }); // HTTP 400
+                return BadRequest(new { message = "Geçersiz veya boş fatura verisi." });
             }
 
-            // 2. Model Validasyon Kontrolü
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState); // HTTP 400
+                return BadRequest(ModelState);
             }
 
-            // 3. Varsayılan Değerler ve İş Mantığı (KDV & Toplam Hesaplama)
-            invoice.InvoiceType = string.IsNullOrEmpty(invoice.InvoiceType) ? "SATIŞ" : invoice.InvoiceType;
-            invoice.Scenario = string.IsNullOrEmpty(invoice.Scenario) ? "TİCARİ FATURA" : invoice.Scenario;
-            invoice.InvoiceDate = DateTime.Now;
+            // Hesaplamalar ve varsayılan değerler Business (IInvoiceService) tarafında halledilir
+            var createdInvoice = await _invoiceService.CreateInvoiceAsync(invoice);
 
-            // KDV (%20) ve Genel Toplam Otomatik Hesaplama
-            invoice.TaxAmount = Math.Round(invoice.Amount * 0.20m, 2);
-            invoice.TotalAmount = Math.Round(invoice.Amount + invoice.TaxAmount, 2);
-
-            // 4. Veritabanına Kayıt
-            _context.Invoices.Add(invoice);
-            _context.SaveChanges();
-
-            return CreatedAtAction(nameof(GetById), new { id = invoice.Id }, invoice);
+            return CreatedAtAction(nameof(GetById), new { id = createdInvoice.Id }, createdInvoice);
         }
 
         // PUT: api/Invoice/5
-        
         [HttpPut("{id}")]
-       [Authorize(Roles = "Admin")]
-        public IActionResult Update(int id, [FromBody] Invoice updatedInvoice)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] Invoice updatedInvoice)
         {
-            // 1. Veri Boş mu Kontrolü
             if (updatedInvoice == null)
             {
-                return BadRequest(new { message = "Geçersiz veri." }); // HTTP 400
+                return BadRequest(new { message = "Geçersiz veri." });
             }
 
-            // 2. Güncelleme İşleminde de Validasyon Kontrolü
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState); // HTTP 400
+                return BadRequest(ModelState);
             }
 
-            // 3. Kayıt Var mı Kontrolü
-            var invoice = _context.Invoices.Find(id);
-            if (invoice == null)
+            var result = await _invoiceService.UpdateInvoiceAsync(id, updatedInvoice);
+            if (!result)
             {
-                return NotFound(new { message = $"{id} ID'li güncellenecek fatura bulunamadı." }); // HTTP 404
+                return NotFound(new { message = $"{id} ID'li güncellenecek fatura bulunamadı." });
             }
 
-            // 4. Güncellenen Tutar Üzerinden KDV ve Toplamı Yeniden Hesapla
-            updatedInvoice.Id = id; // ID çakışmasını önle
-            updatedInvoice.TaxAmount = Math.Round(updatedInvoice.Amount * 0.20m, 2);
-            updatedInvoice.TotalAmount = Math.Round(updatedInvoice.Amount + updatedInvoice.TaxAmount, 2);
-            updatedInvoice.InvoiceDate = invoice.InvoiceDate; // Orijinal tarihi koru
-
-            // 5. Değerleri Aktar ve Kaydet
-            _context.Entry(invoice).CurrentValues.SetValues(updatedInvoice);
-            _context.SaveChanges();
-
-            return Ok(new { message = "Fatura başarıyla güncellendi.", data = invoice }); // HTTP 200 OK
+            return Ok(new { message = "Fatura başarıyla güncellendi." });
         }
 
         // DELETE: api/Invoice/5
-       
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var invoice = _context.Invoices.Find(id);
-            if (invoice == null)
+            var result = await _invoiceService.DeleteInvoiceAsync(id);
+            if (!result)
             {
-                return NotFound(new { message = $"{id} ID'li silinecek fatura bulunamadı." }); // HTTP 404
+                return NotFound(new { message = $"{id} ID'li silinecek fatura bulunamadı." });
             }
 
-            _context.Invoices.Remove(invoice);
-            _context.SaveChanges();
-
-            return Ok(new { message = "Fatura başarıyla silindi." }); // HTTP 200 OK
+            return Ok(new { message = "Fatura başarıyla silindi." });
         }
     }
 }

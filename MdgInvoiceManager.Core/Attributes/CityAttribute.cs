@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace MdgInvoiceManager.Models
-{
+namespace MdgInvoiceManager.Core.Attributes;
+
     public class CityAttribute : ValidationAttribute
     {
         // Türkiye'nin 81 İli (Büyük/küçük harf duyarsızlığı için Türkçe karakter destekli liste)
@@ -34,4 +34,3 @@ namespace MdgInvoiceManager.Models
             return ValidationResult.Success;
         }
     }
-}
