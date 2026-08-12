@@ -11,7 +11,7 @@ namespace MdgInvoiceManager.Core.Dtos
         [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi giriniz.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Şlifre zorunludur.")]
+        [Required(ErrorMessage = "Şifre zorunludur.")]
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Rol alanı zorunludur.")]

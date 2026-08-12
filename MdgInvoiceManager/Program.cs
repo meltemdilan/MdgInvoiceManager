@@ -1,6 +1,7 @@
-﻿// Katmanlarımızın Namespace'leri
+﻿/// Katmanlarımızın Namespace'leri
 using MdgInvoiceManager.Business.Abstract;
 using MdgInvoiceManager.Business.Concreate;
+using MdgInvoiceManager.Business.Concrete;
 using MdgInvoiceManager.DataAccess.Data;
 using MdgInvoiceManager.DataAccess.Repositories.Abstract;
 using MdgInvoiceManager.DataAccess.Repositories.Concrete;
@@ -10,8 +11,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 // 1. Veritabanı Bağlantısı
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
@@ -53,14 +56,21 @@ builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IInvoiceService, InvoiceManager>();
 builder.Services.AddScoped<IAuthService, AuthManager>();
 
-// 5. Controller ve View Desteği
-builder.Services.AddControllersWithViews();
+// 5. Controller Desteği ve JSON Döngü Engelleme
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
 // 6. Swagger Yapılandırması
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "MdgInvoiceManager", Version = "v1" });
+
+    // Şema çakışmalarını önleyen ayar
+    options.CustomSchemaIds(type => type.FullName);
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -89,6 +99,22 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+// Otomatik Rol Oluşturma (Data Seed)
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    string[] roles = new[] { "User", "Admin" };
+
+    foreach (var role in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole(role));
+        }
+    }
+}
 
 // 7. Middleware Yapılandırması
 if (app.Environment.IsDevelopment())

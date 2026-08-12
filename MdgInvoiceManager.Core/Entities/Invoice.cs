@@ -4,21 +4,19 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MdgInvoiceManager.Core.Entities
 {
-    [Table("Invoice")]
     public class Invoice
     {
-        [Key]
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Müşteri Adı / Unvanı boş bırakılamaz.")]
-        [StringLength(250, ErrorMessage = "Müşteri adı en fazla 250 karakter olabilir.")]
+        // Kullanıcıya özel fatura yetkilendirmesi için gerekli alan
+        public string UserId { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Müşteri adı boş bırakılamaz.")]
         public string CustomerName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Tutar alanı boş bırakılamaz.")]
         [Range(0.01, 10000000.00, ErrorMessage = "Fatura tutarı 0'dan büyük ve makul bir değer olmalıdır.")]
         [Column(TypeName = "decimal(18,2)")]
-       
-       
         public decimal Amount { get; set; }
 
         [Required(ErrorMessage = "Şehir alanı boş bırakılamaz.")]
@@ -36,7 +34,7 @@ namespace MdgInvoiceManager.Core.Entities
 
         public string? Currency { get; set; }
 
-        [RegularExpression(@"^[0-9]{10,11}$", ErrorMessage = "VKN/TCKN alanı sadece 10 haneli (VKN) veya 11 haneli (TCKN) rakamlardan oluşmalıdır.")]
+        [RegularExpression(@"^[0-9]{10,11}$", ErrorMessage = "VKN/TCKN alanı 10 veya 11 haneli rakamlardan oluşmalıdır.")]
         public string? VknTckn { get; set; }
 
         public string? TaxOffice { get; set; }

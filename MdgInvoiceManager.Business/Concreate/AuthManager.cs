@@ -24,39 +24,84 @@ namespace MdgInvoiceManager.Business.Concreate
 
         public async Task<ResponseModel> RegisterAsync(RegisterDto model)
         {
+            model.Role = model.Role.Trim().ToLower() switch
+            {
+                "admin" => "Admin",
+                "user" => "User",
+                _ => model.Role
+            };
+
             var userExists = await _userManager.FindByNameAsync(model.Username);
-            if (userExists != null) return new ResponseModel { IsSuccess = false, Message = "Bu kullanıcı adı zaten alınmış!" };
+            if (userExists != null)
+            {
+                return new ResponseModel
+                {
+                    IsSuccess = false,
+                    Message = "Bu kullanıcı adı zaten alınmış!"
+                };
+            }
 
             var emailExists = await _userManager.FindByEmailAsync(model.Email);
-            if (emailExists != null) return new ResponseModel { IsSuccess = false, Message = "Bu e-posta adresi zaten kullanımda!" };
+            if (emailExists != null)
+            {
+                return new ResponseModel
+                {
+                    IsSuccess = false,
+                    Message = "Bu e-posta adresi zaten kullanımda!"
+                };
+            }
 
             var roleExists = await _roleManager.RoleExistsAsync(model.Role);
-            if (!roleExists) return new ResponseModel { IsSuccess = false, Message = $"'{model.Role}' adında geçerli bir rol bulunamadı!" };
+            if (!roleExists)
+            {
+                return new ResponseModel
+                {
+                    IsSuccess = false,
+                    Message = $"'{model.Role}' adında geçerli bir rol bulunamadı!"
+                };
+            }
 
-            IdentityUser user = new IdentityUser()
+            IdentityUser user = new IdentityUser
             {
                 Email = model.Email,
-                SecurityStamp = Guid.NewGuid().ToString(),
-                UserName = model.Username
+                UserName = model.Username,
+                SecurityStamp = Guid.NewGuid().ToString()
             };
 
             var result = await _userManager.CreateAsync(user, model.Password);
-            if (!result.Succeeded) return new ResponseModel { IsSuccess = false, Message = "Kullanıcı oluşturulamadı." };
+
+            if (!result.Succeeded)
+            {
+                return new ResponseModel
+                {
+                    IsSuccess = false,
+                    Message = "Kullanıcı oluşturulamadı."
+                };
+            }
 
             await _userManager.AddToRoleAsync(user, model.Role);
-            return new ResponseModel { IsSuccess = true, Message = $"Kullanıcı ({model.Username}) [{model.Role}] rolüyle başarıyla oluşturuldu!" };
+
+            return new ResponseModel
+            {
+                IsSuccess = true,
+                Message = $"Kullanıcı ({model.Username}) [{model.Role}] rolüyle başarıyla oluşturuldu!"
+            };
         }
 
         public async Task<ResponseModel> LoginAsync(LoginDto model)
         {
             var user = await _userManager.FindByNameAsync(model.Username);
+
             if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
             {
                 var userRoles = await _userManager.GetRolesAsync(user);
+
                 var authClaims = new List<Claim>
                 {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                     new Claim(ClaimTypes.Name, user.UserName!),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
                 };
 
                 foreach (var userRole in userRoles)
@@ -64,15 +109,17 @@ namespace MdgInvoiceManager.Business.Concreate
                     authClaims.Add(new Claim(ClaimTypes.Role, userRole));
                 }
 
-                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mdg1234567891234mdg1234567891234"));
-                var signingCredentials = new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256);
+                var authSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes("mdg1234567891234mdg1234567891234"));
 
                 var token = new JwtSecurityToken(
                     issuer: "mdgadmin",
                     audience: "mdgkullanici",
                     expires: DateTime.Now.AddHours(3),
                     claims: authClaims,
-                    signingCredentials: signingCredentials
+                    signingCredentials: new SigningCredentials(
+                        authSigningKey,
+                        SecurityAlgorithms.HmacSha256)
                 );
 
                 return new ResponseModel
@@ -83,7 +130,23 @@ namespace MdgInvoiceManager.Business.Concreate
                 };
             }
 
-            return new ResponseModel { IsSuccess = false, Message = "Kullanıcı adı veya şifre hatalı!" };
+            return new ResponseModel
+            {
+                IsSuccess = false,
+                Message = "Kullanıcı adı veya şifre hatalı!"
+            };
+        }
+
+        public async Task<ResponseModel> RefreshTokenAsync(RefreshTokenDto model)
+        {
+            // Refresh token doğrulama mantığını ileride buraya yazacağız
+            throw new System.NotImplementedException();
+        }
+
+        public async Task<ResponseModel> RevokeTokenAsync(string userId)
+        {
+            // Refresh token iptal mantığını ileride buraya yazacağız
+            throw new System.NotImplementedException();
         }
     }
 }

@@ -1,4 +1,7 @@
-﻿using MdgInvoiceManager.DataAccess.Data;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using MdgInvoiceManager.DataAccess.Data;
 using MdgInvoiceManager.DataAccess.Repositories.Abstract;
 using Microsoft.EntityFrameworkCore;
 using Invoice = MdgInvoiceManager.Core.Entities.Invoice;
@@ -12,6 +15,12 @@ namespace MdgInvoiceManager.DataAccess.Repositories.Concrete
         public InvoiceRepository(MdgInvoiceDbContext context)
         {
             _context = context;
+        }
+
+        // LINQ sorgularını veritabanı seviyesinde (SQL) çalıştırmak için IQueryable döner
+        public IQueryable<Invoice> GetAllQueryable()
+        {
+            return _context.Invoices.AsNoTracking();
         }
 
         public async Task<List<Invoice>> GetAllAsync()
@@ -39,7 +48,7 @@ namespace MdgInvoiceManager.DataAccess.Repositories.Concrete
             _context.Invoices.Remove(invoice);
         }
 
-        public async Task SaveChangesAsync() // neden ayrı savachange metodu var?
+        public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();
         }

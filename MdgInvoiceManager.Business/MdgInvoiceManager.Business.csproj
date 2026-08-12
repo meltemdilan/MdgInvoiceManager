@@ -7,6 +7,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- HttpContext ve IHttpContextAccessor için doğru framework referansı -->
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\MdgInvoiceManager.Core\MdgInvoiceManager.Core.csproj" />
 		<ProjectReference Include="..\MdgInvoiceManager.DataAccess\MdgInvoiceManager.DataAccess.csproj" />
 	</ItemGroup>
