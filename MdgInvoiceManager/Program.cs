@@ -16,9 +16,19 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
-// 1. Veritabanı Bağlantısı
+// 1. Veritabanı Bağlantısı (DbContextFactory Kullanımı)
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60); // 60 saniye sorgu süresi
+        }));
+
 
 // 2. Identity Servisi
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -58,10 +68,10 @@ builder.Services.AddScoped<IAuthService, AuthManager>();
 
 // 5. Controller Desteği ve JSON Döngü Engelleme
 builder.Services.AddControllersWithViews()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    });
+  .AddJsonOptions(options =>
+  {
+      options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+  });
 
 // 6. Swagger Yapılandırması
 builder.Services.AddEndpointsApiExplorer();
@@ -69,8 +79,8 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "MdgInvoiceManager", Version = "v1" });
 
-    // Şema çakışmalarını önleyen ayar
-    options.CustomSchemaIds(type => type.FullName);
+    // Şema çakışmalarını önleyen ayar
+    options.CustomSchemaIds(type => type.FullName);
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -83,19 +93,19 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
+  {
     {
+      new OpenApiSecurityScheme
+      {
+        Reference = new OpenApiReference
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
+          Type = ReferenceType.SecurityScheme,
+          Id = "Bearer"
         }
-    });
+      },
+      Array.Empty<string>()
+    }
+  });
 });
 
 var app = builder.Build();

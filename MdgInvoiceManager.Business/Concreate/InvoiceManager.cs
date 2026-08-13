@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using MdgInvoiceManager.Business.Abstract;
 using MdgInvoiceManager.Core.Entities;
 using MdgInvoiceManager.DataAccess.Repositories.Abstract;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace MdgInvoiceManager.Business.Concrete
 {
@@ -22,7 +20,6 @@ namespace MdgInvoiceManager.Business.Concrete
             _httpContextAccessor = httpContextAccessor;
         }
 
-        // Token'dan o anki kullanıcının ID'sini okur
         private string GetCurrentUserId()
         {
             var user = _httpContextAccessor.HttpContext?.User;
@@ -35,7 +32,6 @@ namespace MdgInvoiceManager.Business.Concrete
                 ?? string.Empty;
         }
 
-        // Token'dan o anki kullanıcının Admin olup olmadığını kontrol eder
         private bool IsAdmin()
         {
             return _httpContextAccessor.HttpContext?.User?.IsInRole("Admin") ?? false;
@@ -43,24 +39,15 @@ namespace MdgInvoiceManager.Business.Concrete
 
         public async Task<List<Invoice>> GetAllInvoicesAsync(int pageNumber = 1, int pageSize = 10)
         {
-            // 1. Veritabanından veriyi henüz çekmiyoruz, IQueryable sorgusu oluşturuyoruz
-            var query = _invoiceRepository.GetAllQueryable();
+            string currentUserId = GetCurrentUserId();
+            bool isAdmin = IsAdmin();
 
-            // Admin değilse (normal kullanıcı ise) filtresini veritabanı sorgusuna ekliyoruz
-            if (!IsAdmin())
+            if (!isAdmin && string.IsNullOrEmpty(currentUserId))
             {
-                string currentUserId = GetCurrentUserId();
-
-                if (string.IsNullOrEmpty(currentUserId))
-                {
-                    return new List<Invoice>();
-                }
-
-                query = query.Where(x => x.UserId != null && x.UserId == currentUserId);
+                return new List<Invoice>();
             }
 
-            // 2. SQL Server tarafında SADECE ilgili 10 kaydı çeken sorguyu çalıştırıyoruz
-            return query.OrderByDescending(x => x.Id).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync().Result;
+            return await _invoiceRepository.GetPagedInvoicesAsync(currentUserId, isAdmin, pageNumber, pageSize);
         }
 
         public async Task<Invoice?> GetInvoiceByIdAsync(int id)
@@ -68,12 +55,10 @@ namespace MdgInvoiceManager.Business.Concrete
             var invoice = await _invoiceRepository.GetByIdAsync(id);
             if (invoice == null) return null;
 
-            // Admin her faturayı görebilir
             if (IsAdmin()) return invoice;
 
-            // Normal kullanıcı başkasının faturasını ID yazarak çekmeye çalışırsa engelle
             string currentUserId = GetCurrentUserId();
-            if (invoice.UserId?.ToString() != currentUserId)
+            if (invoice.UserId != currentUserId)
             {
                 return null;
             }
@@ -83,7 +68,6 @@ namespace MdgInvoiceManager.Business.Concrete
 
         public async Task<Invoice> CreateInvoiceAsync(Invoice invoice)
         {
-            // Fatura oluşturulurken UserId verilmemişse otomatik token'daki ID'yi atar
             if (string.IsNullOrEmpty(invoice.UserId))
             {
                 invoice.UserId = GetCurrentUserId();
@@ -93,29 +77,24 @@ namespace MdgInvoiceManager.Business.Concrete
             invoice.Scenario = string.IsNullOrEmpty(invoice.Scenario) ? "TİCARİ FATURA" : invoice.Scenario;
             invoice.InvoiceDate = DateTime.Now;
 
-            // KDV ve Toplam Tutar hesaplaması
             invoice.TaxAmount = Math.Round(invoice.Amount * 0.20m, 2);
             invoice.TotalAmount = Math.Round(invoice.Amount + invoice.TaxAmount, 2);
 
             await _invoiceRepository.AddAsync(invoice);
-            await _invoiceRepository.SaveChangesAsync();
 
             return invoice;
         }
 
         public async Task<bool> UpdateInvoiceAsync(int id, Invoice updatedInvoice)
         {
-            // İŞ KURALI: Fatura güncelleme yetkisi SADECE Admin rolüne aittir!
             if (!IsAdmin())
             {
                 return false;
             }
 
-            // Veritabanındaki takip edilen (tracked) mevcut faturayı çekiyoruz
             var existingInvoice = await _invoiceRepository.GetByIdAsync(id);
             if (existingInvoice == null) return false;
 
-            // EF Core Tracking çakışmasını önlemek için mevcut nesnenin alanlarını güncelliyoruz
             existingInvoice.CustomerName = updatedInvoice.CustomerName;
             existingInvoice.Amount = updatedInvoice.Amount;
             existingInvoice.City = updatedInvoice.City;
@@ -123,18 +102,15 @@ namespace MdgInvoiceManager.Business.Concrete
             existingInvoice.FilePath = updatedInvoice.FilePath;
             existingInvoice.Scenario = string.IsNullOrEmpty(updatedInvoice.Scenario) ? existingInvoice.Scenario : updatedInvoice.Scenario;
 
-            // Yeniden hesaplamaları yapıyoruz
             existingInvoice.TaxAmount = Math.Round(updatedInvoice.Amount * 0.20m, 2);
             existingInvoice.TotalAmount = Math.Round(updatedInvoice.Amount + existingInvoice.TaxAmount, 2);
 
-            _invoiceRepository.Update(existingInvoice);
-            await _invoiceRepository.SaveChangesAsync();
+            await _invoiceRepository.UpdateAsync(existingInvoice);
             return true;
         }
 
         public async Task<bool> DeleteInvoiceAsync(int id)
         {
-            // İŞ KURALI: Fatura silme yetkisi SADECE Admin rolüne aittir!
             if (!IsAdmin())
             {
                 return false;
@@ -143,8 +119,7 @@ namespace MdgInvoiceManager.Business.Concrete
             var invoice = await _invoiceRepository.GetByIdAsync(id);
             if (invoice == null) return false;
 
-            _invoiceRepository.Delete(invoice);
-            await _invoiceRepository.SaveChangesAsync();
+            await _invoiceRepository.DeleteAsync(invoice);
             return true;
         }
     }

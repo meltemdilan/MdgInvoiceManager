@@ -12,44 +12,61 @@ namespace MdgInvoiceManager.DataAccess.Repositories.Concrete
     {
         private readonly MdgInvoiceDbContext _context;
 
+        // Scoped DbContext inject ediliyor (Her HTTP request için 1 connection)
         public InvoiceRepository(MdgInvoiceDbContext context)
         {
             _context = context;
         }
 
-        // LINQ sorgularını veritabanı seviyesinde (SQL) çalıştırmak için IQueryable döner
-        public IQueryable<Invoice> GetAllQueryable()
+        public async Task<List<Invoice>> GetPagedInvoicesAsync(
+            string? userId,
+            bool isAdmin,
+            int pageNumber,
+            int pageSize)
         {
-            return _context.Invoices.AsNoTracking();
+            var query = _context.Invoices.AsNoTracking();
+
+            if (!isAdmin && !string.IsNullOrEmpty(userId))
+            {
+                query = query.Where(y => y.UserId == userId);
+            }
+
+            return await query
+                .OrderByDescending(y => y.Id)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
 
         public async Task<List<Invoice>> GetAllAsync()
         {
-            return await _context.Invoices.ToListAsync();
+            return await _context.Invoices
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<Invoice?> GetByIdAsync(int id)
         {
-            return await _context.Invoices.FindAsync(id);
+            return await _context.Invoices
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task AddAsync(Invoice invoice)
         {
             await _context.Invoices.AddAsync(invoice);
+            await _context.SaveChangesAsync();
         }
 
-        public void Update(Invoice invoice)
+        public async Task UpdateAsync(Invoice invoice)
         {
             _context.Invoices.Update(invoice);
+            await _context.SaveChangesAsync();
         }
 
-        public void Delete(Invoice invoice)
+        public async Task DeleteAsync(Invoice invoice)
         {
             _context.Invoices.Remove(invoice);
-        }
-
-        public async Task SaveChangesAsync()
-        {
             await _context.SaveChangesAsync();
         }
     }
