@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.VisualStudio.Web.CodeGeneration.Design;
+using StackExchange.Redis;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -18,17 +20,25 @@ builder.Services.AddHttpContextAccessor();
 
 // 1. Veritabanı Bağlantısı (DbContextFactory Kullanımı)
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(60); // 60 saniye sorgu süresi
-        }));
+  options.UseSqlServer(
+    builder.Configuration.GetConnectionString("DefaultConnection"),
+    sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+          maxRetryCount: 5,
+          maxRetryDelay: TimeSpan.FromSeconds(10),
+          errorNumbersToAdd: null);
+        sqlOptions.CommandTimeout(60); // 60 saniye sorgu süresi
+    }));
+// Redis Cache Servis Kaydı
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "MdgInvoiceManager_";
+});
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+  ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
 
 // 2. Identity Servisi
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -68,10 +78,10 @@ builder.Services.AddScoped<IAuthService, AuthManager>();
 
 // 5. Controller Desteği ve JSON Döngü Engelleme
 builder.Services.AddControllersWithViews()
-  .AddJsonOptions(options =>
-  {
-      options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-  });
+ .AddJsonOptions(options =>
+ {
+     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+ });
 
 // 6. Swagger Yapılandırması
 builder.Services.AddEndpointsApiExplorer();
@@ -93,19 +103,19 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
+ {
   {
+   new OpenApiSecurityScheme
+   {
+    Reference = new OpenApiReference
     {
-      new OpenApiSecurityScheme
-      {
-        Reference = new OpenApiReference
-        {
-          Type = ReferenceType.SecurityScheme,
-          Id = "Bearer"
-        }
-      },
-      Array.Empty<string>()
+     Type = ReferenceType.SecurityScheme,
+     Id = "Bearer"
     }
-  });
+   },
+   Array.Empty<string>()
+  }
+ });
 });
 
 var app = builder.Build();

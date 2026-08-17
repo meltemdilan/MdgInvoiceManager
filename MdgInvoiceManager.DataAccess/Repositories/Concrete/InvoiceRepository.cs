@@ -12,17 +12,26 @@ namespace MdgInvoiceManager.DataAccess.Repositories.Concrete
     {
         private readonly MdgInvoiceDbContext _context;
 
-        // Scoped DbContext inject ediliyor (Her HTTP request için 1 connection)
         public InvoiceRepository(MdgInvoiceDbContext context)
         {
             _context = context;
         }
 
-        public async Task<List<Invoice>> GetPagedInvoicesAsync(
-            string? userId,
-            bool isAdmin,
-            int pageNumber,
-            int pageSize)
+        public async Task<Invoice?> GetByIdAsync(int id)
+        {
+            return await _context.Invoices
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+        }
+
+        public async Task<List<Invoice>> GetAllAsync()
+        {
+            return await _context.Invoices
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<Invoice>> GetPagedInvoicesAsync(string? userId, bool isAdmin, int pageNumber, int pageSize)
         {
             var query = _context.Invoices.AsNoTracking();
 
@@ -36,20 +45,6 @@ namespace MdgInvoiceManager.DataAccess.Repositories.Concrete
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
-        }
-
-        public async Task<List<Invoice>> GetAllAsync()
-        {
-            return await _context.Invoices
-                .AsNoTracking()
-                .ToListAsync();
-        }
-
-        public async Task<Invoice?> GetByIdAsync(int id)
-        {
-            return await _context.Invoices
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task AddAsync(Invoice invoice)
