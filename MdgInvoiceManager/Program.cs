@@ -30,6 +30,7 @@ builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
           errorNumbersToAdd: null);
         sqlOptions.CommandTimeout(60); // 60 saniye sorgu süresi
     }));
+
 // Redis Cache Servis Kaydı
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -89,8 +90,8 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "MdgInvoiceManager", Version = "v1" });
 
-    // Şema çakışmalarını önleyen ayar
-    options.CustomSchemaIds(type => type.FullName);
+    // Şema çakışmalarını önleyen ayar
+    options.CustomSchemaIds(type => type.FullName);
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -103,36 +104,49 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
- {
-  {
-   new OpenApiSecurityScheme
-   {
-    Reference = new OpenApiReference
     {
-     Type = ReferenceType.SecurityScheme,
-     Id = "Bearer"
-    }
-   },
-   Array.Empty<string>()
-  }
- });
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();
 
-// Otomatik Rol Oluşturma (Data Seed)
+// Otomatik Migration ve Rol Oluşturma
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
-    string[] roles = new[] { "User", "Admin" };
-
-    foreach (var role in roles)
+    var services = scope.ServiceProvider;
+    try
     {
-        if (!await roleManager.RoleExistsAsync(role))
+        // 1. Sıfır SQL container'ında veritabanı ve Identity tablolarını açar
+        var dbContext = services.GetRequiredService<MdgInvoiceDbContext>();
+        dbContext.Database.Migrate();
+
+        // 2. Rolleri ekler
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        string[] roles = new[] { "User", "Admin" };
+
+        foreach (var role in roles)
         {
-            await roleManager.CreateAsync(new IdentityRole(role));
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
         }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Veritabanı başlatılırken veya roller eklenirken bir hata oluştu.");
     }
 }
 
@@ -143,7 +157,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();

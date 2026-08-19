@@ -1,0 +1,36 @@
+services:
+  # 1. Redis Cache Servisi
+  mdg-redis:
+    image: redis:alpine
+    container_name: mdg_redis_container
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # 2. SQL Server Servisi
+  mdg-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mdg_sql_container
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=MdgPassword123!
+    ports:
+      - "1433:1433"
+    restart: always
+
+  # 3. .NET Web API
+  mdg-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mdg_api_container
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mdg-db,1433;Database=MdgInvoiceDb;User Id=sa;Password=MdgPassword123!;TrustServerCertificate=True;Encrypt=False;
+      - ConnectionStrings__Redis=mdg-redis:6379
+    depends_on:
+      - mdg-redis
+      - mdg-db
+    restart: on-failure
