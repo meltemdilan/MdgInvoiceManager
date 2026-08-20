@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
+using MassTransit;
 using MdgInvoiceManager.Business.Abstract;
+using MdgInvoiceManager.Core; // Event modelimiz burada
 using MdgInvoiceManager.Core.Entities;
 using MdgInvoiceManager.DataAccess.Repositories.Abstract;
 using Microsoft.AspNetCore.Http;
@@ -15,16 +17,19 @@ namespace MdgInvoiceManager.Business.Concrete
     {
         private readonly IInvoiceRepository _invoiceRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IDistributedCache _cache; // Redis önbellek servisi
+        private readonly IDistributedCache _cache;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public InvoiceManager(
-      IInvoiceRepository invoiceRepository,
-      IHttpContextAccessor httpContextAccessor,
-      IDistributedCache cache)
+        public InvoiceManager(
+            IInvoiceRepository invoiceRepository,
+            IHttpContextAccessor httpContextAccessor,
+            IDistributedCache cache,
+            IPublishEndpoint publishEndpoint)
         {
             _invoiceRepository = invoiceRepository;
             _httpContextAccessor = httpContextAccessor;
             _cache = cache;
+            _publishEndpoint = publishEndpoint;
         }
 
         private string GetCurrentUserId()
@@ -44,10 +49,10 @@ namespace MdgInvoiceManager.Business.Concrete
             return _httpContextAccessor.HttpContext?.User?.IsInRole("Admin") ?? false;
         }
 
-        // ==========================================
-        // 1. GET ALL (REDIS İLE ÖNBELLEKLENMİŞ LİSTE)
-        // ==========================================
-        public async Task<List<Invoice>> GetAllInvoicesAsync(int pageNumber = 1, int pageSize = 10)
+        // ==========================================
+        // 1. GET ALL (REDIS İLE ÖNBELLEKLENMİŞ LİSTE)
+        // ==========================================
+        public async Task<List<Invoice>> GetAllInvoicesAsync(int pageNumber = 1, int pageSize = 10)
         {
             string currentUserId = GetCurrentUserId();
             bool isAdmin = IsAdmin();
@@ -57,29 +62,23 @@ namespace MdgInvoiceManager.Business.Concrete
                 return new List<Invoice>();
             }
 
-            // Kullanıcıya veya role ve sayfa numarasına özel benzersiz Redis anahtarı
-            // Örnek: "invoices:user:abc-123:p:1:s:10" veya "invoices:admin:p:1:s:10"
-            string roleOrUserKey = isAdmin ? "admin" : $"user:{currentUserId}";
+            string roleOrUserKey = isAdmin ? "admin" : $"user:{currentUserId}";
             string cacheKey = $"invoices:{roleOrUserKey}:p:{pageNumber}:s:{pageSize}";
 
-            // 1. Önce Redis Cache'e bak
-            var cachedData = await _cache.GetStringAsync(cacheKey);
+            var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                // RAM'de varsa doğrudan JSON'dan deserialize edip dön (SQL'e hiç gitmez)
-                return JsonSerializer.Deserialize<List<Invoice>>(cachedData)!;
+                return JsonSerializer.Deserialize<List<Invoice>>(cachedData)!;
             }
 
-            // 2. Redis'te yoksa Veritabanından (SQL) getir
-            var invoices = await _invoiceRepository.GetPagedInvoicesAsync(currentUserId, isAdmin, pageNumber, pageSize);
+            var invoices = await _invoiceRepository.GetPagedInvoicesAsync(currentUserId, isAdmin, pageNumber, pageSize);
 
-            // 3. Veritabanından gelen listeyi Redis'e 5 dakikalığına kaydet
-            if (invoices != null && invoices.Count > 0)
+            if (invoices != null && invoices.Count > 0)
             {
                 var cacheOptions = new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) // Liste için 5 dakika idealdir
-                };
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                };
 
                 var serializedData = JsonSerializer.Serialize(invoices);
                 await _cache.SetStringAsync(cacheKey, serializedData, cacheOptions);
@@ -88,29 +87,25 @@ namespace MdgInvoiceManager.Business.Concrete
             return invoices ?? new List<Invoice>();
         }
 
-        // ==========================================
-        // 2. GET BY ID (REDIS İLE TEKİL FATURA)
-        // ==========================================
-        public async Task<Invoice?> GetInvoiceByIdAsync(int id)
+        // ==========================================
+        // 2. GET BY ID (REDIS İLE TEKİL FATURA)
+        // ==========================================
+        public async Task<Invoice?> GetInvoiceByIdAsync(int id)
         {
             string cacheKey = $"invoice:{id}";
 
-            // 1. Önce Redis Cache'e bakıyoruz
-            Invoice? invoice = null;
+            Invoice? invoice = null;
             var cachedData = await _cache.GetStringAsync(cacheKey);
 
             if (!string.IsNullOrEmpty(cachedData))
             {
-                // Redis'te varsa doğrudan JSON'dan nesneye çevir
-                invoice = JsonSerializer.Deserialize<Invoice>(cachedData);
+                invoice = JsonSerializer.Deserialize<Invoice>(cachedData);
             }
             else
             {
-                // 2. Redis'te yoksa Veritabanından (SQL) getir
-                invoice = await _invoiceRepository.GetByIdAsync(id);
+                invoice = await _invoiceRepository.GetByIdAsync(id);
 
-                // 3. Veritabanında bulunduysa Redis'e 10 dakikalığına kaydet
-                if (invoice != null)
+                if (invoice != null)
                 {
                     var cacheOptions = new DistributedCacheEntryOptions
                     {
@@ -124,8 +119,7 @@ namespace MdgInvoiceManager.Business.Concrete
 
             if (invoice == null) return null;
 
-            // Güvenlik ve Yetki Kontrolü
-            if (IsAdmin()) return invoice;
+            if (IsAdmin()) return invoice;
 
             string currentUserId = GetCurrentUserId();
             if (invoice.UserId != currentUserId)
@@ -136,6 +130,9 @@ namespace MdgInvoiceManager.Business.Concrete
             return invoice;
         }
 
+        // ==========================================
+        // 3. CREATE INVOICE (KUYRUK ENTEGRASYONU)
+        // ==========================================
         public async Task<Invoice> CreateInvoiceAsync(Invoice invoice)
         {
             if (string.IsNullOrEmpty(invoice.UserId))
@@ -150,7 +147,16 @@ namespace MdgInvoiceManager.Business.Concrete
             invoice.TaxAmount = Math.Round(invoice.Amount * 0.20m, 2);
             invoice.TotalAmount = Math.Round(invoice.Amount + invoice.TaxAmount, 2);
 
+            // 1. Fatura veritabanına kaydedilir
             await _invoiceRepository.AddAsync(invoice);
+
+            // 2. RabbitMQ kuyruğuna mesaj fırlatılır
+            await _publishEndpoint.Publish(new InvoiceCreatedEvent
+            {
+                InvoiceId = invoice.Id,
+                CustomerName = invoice.CustomerName,
+                TotalAmount = invoice.TotalAmount
+            });
 
             return invoice;
         }
@@ -177,8 +183,7 @@ namespace MdgInvoiceManager.Business.Concrete
 
             await _invoiceRepository.UpdateAsync(existingInvoice);
 
-            
-            await _cache.RemoveAsync($"invoice:{id}");
+            await _cache.RemoveAsync($"invoice:{id}");
 
             return true;
         }
@@ -195,8 +200,7 @@ namespace MdgInvoiceManager.Business.Concrete
 
             await _invoiceRepository.DeleteAsync(invoice);
 
-            // Önemli: Silinen faturanın önbellek kaydını Redis'ten siliyoruz
-            await _cache.RemoveAsync($"invoice:{id}");
+            await _cache.RemoveAsync($"invoice:{id}");
 
             return true;
         }

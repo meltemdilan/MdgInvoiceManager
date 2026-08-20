@@ -5,6 +5,7 @@ using MdgInvoiceManager.Business.Concrete;
 using MdgInvoiceManager.DataAccess.Data;
 using MdgInvoiceManager.DataAccess.Repositories.Abstract;
 using MdgInvoiceManager.DataAccess.Repositories.Concrete;
+using MassTransit; // <-- YENİ: Kuyruk kütüphanesi
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,31 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
   ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
+
+// -------------------------------------------------------------
+// YENİ: MassTransit ve RabbitMQ Servis Kaydı
+// -------------------------------------------------------------
+builder.Services.AddMassTransit(x =>
+{
+    // Kuyruktan gelen mesajı işleyecek tüketici sınıfımızı kaydediyoruz
+    x.AddConsumer<InvoiceCreatedConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        // Docker üzerinde çalışan RabbitMQ'ya bağlanır (varsayılan port 5672)
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        // Fatura mesajlarının toplanacağı ve işleneceği kuyruk ucu
+        cfg.ReceiveEndpoint("invoice-created-queue", e =>
+        {
+            e.ConfigureConsumer<InvoiceCreatedConsumer>(context);
+        });
+    });
+});
 
 // 2. Identity Servisi
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
