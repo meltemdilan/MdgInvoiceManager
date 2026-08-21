@@ -42,7 +42,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
   ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
 
-// -------------------------------------------------------------
 // YENİ: MassTransit ve RabbitMQ Servis Kaydı
 // -------------------------------------------------------------
 builder.Services.AddMassTransit(x =>

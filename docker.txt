@@ -1,0 +1,27 @@
+# 1. Aşama: Derleme (SDK)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Proje dosyalarını kopyala ve restore et
+COPY ["MdgInvoiceManager/MdgInvoiceManager.csproj", "MdgInvoiceManager/"]
+COPY ["MdgInvoiceManager.Business/MdgInvoiceManager.Business.csproj", "MdgInvoiceManager.Business/"]
+COPY ["MdgInvoiceManager.DataAccess/MdgInvoiceManager.DataAccess.csproj", "MdgInvoiceManager.DataAccess/"]
+COPY ["MdgInvoiceManager.Core/MdgInvoiceManager.Core.csproj", "MdgInvoiceManager.Core/"]
+
+RUN dotnet restore "MdgInvoiceManager/MdgInvoiceManager.csproj"
+
+# Tüm kaynak kodları kopyala ve Release olarak derle
+COPY . .
+WORKDIR "/src/MdgInvoiceManager"
+RUN dotnet publish "MdgInvoiceManager.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# 2. Aşama: Çalıştırma (Runtime)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# API dinleme portu
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+
+ENTRYPOINT ["dotnet", "MdgInvoiceManager.dll"]

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # 1. Redis Cache Servisi
   mdg-redis:
@@ -18,7 +20,19 @@ services:
       - "1433:1433"
     restart: always
 
-  # 3. .NET Web API
+  # 3. RabbitMQ Message Broker
+  mdg-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: mdg_rabbitmq_container
+    ports:
+      - "5672:5672"   # AMQP portu
+      - "15672:15672" # Management UI paneli
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: always
+
+  # 4. .NET Web API
   mdg-api:
     build:
       context: .
@@ -30,7 +44,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=mdg-db,1433;Database=MdgInvoiceDb;User Id=sa;Password=MdgPassword123!;TrustServerCertificate=True;Encrypt=False;
       - ConnectionStrings__Redis=mdg-redis:6379
+      - RabbitMQ__Host=mdg-rabbitmq
     depends_on:
       - mdg-redis
       - mdg-db
+      - mdg-rabbitmq
     restart: on-failure
