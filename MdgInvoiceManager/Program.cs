@@ -19,6 +19,16 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
+// CORS Servis Kaydı (Angular Web İstemcisi İçin)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp",
+        policy => policy.WithOrigins("http://localhost:4200")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials());
+});
+
 // 1. Veritabanı Bağlantısı (DbContextFactory Kullanımı)
 builder.Services.AddDbContext<MdgInvoiceDbContext>(options =>
   options.UseSqlServer(
@@ -185,6 +195,9 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// CORS Middleware'i (Routing'den sonra, Auth'tan önce olmalı)
+app.UseCors("AllowAngularApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
